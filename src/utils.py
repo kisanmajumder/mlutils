@@ -4,6 +4,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score,mean_squared_error
 from sklearn.base import BaseEstimator, TransformerMixin
 from typing_extensions import Dict
+import numpy as np
 
 def outlier_value(data:pd.DataFrame, column:str, lower_q:float,upper_q:float,outlier_type:str)->Dict:
     """
@@ -32,12 +33,14 @@ def outlier_value(data:pd.DataFrame, column:str, lower_q:float,upper_q:float,out
         result['outlier_count'] = data[ (data[column] >  Q3 + IQR)][column].count()
         return result
 
-def data_profile_numeric(data:pd.DataFrame,target_col:str)->pd.DataFrame:
+def data_profile_numeric(data:pd.DataFrame,target_col:str,lower_q:float,upper_q:float)->pd.DataFrame:
     """
 
     Args:
         data (pd.DataFrame): raw training data
         target_col(str): Name of the target column
+        lower_q(float): lower percentile value for outlier
+        upper_q(float): Upper percentile value for outlier
 
     Returns:
         pd.DataFrame: Data profile on all the numeric columns
@@ -74,8 +77,8 @@ def data_profile_numeric(data:pd.DataFrame,target_col:str)->pd.DataFrame:
                          df[i].isnull().mean() * 100, 
                          df[i].skew(),
                          df[i].kurt(),
-                         outlier_value(df,i,0.25,0.75,'max'),
-                         outlier_value(df,i,0.25,0.75,'min'),
+                         outlier_value(df,i,lower_q,upper_q,'max'),
+                         outlier_value(df,i,lower_q,upper_q,'min'),
                          (df[i].nunique()*100)/df[i].count()
                         ]
     
@@ -130,7 +133,7 @@ def remove_duplicates(data:pd.DataFrame,col=None)->pd.DataFrame:
     return df_subset
     
 
-def remove_variables(data:pd.DataFrame,target_col:str,missing_values_threshold:float,min_variance=0):
+def remove_non_info_variables(data:pd.DataFrame,target_col:str,missing_values_threshold:float,min_variance=0):
     """
     Args:
         data (pd.DataFrame): input data 
@@ -234,6 +237,36 @@ def feature_selection_wrapper(data:pd.DataFrame,type:str,target_col:str)->pd.Dat
         best_model_cnt_features = model_performance.index(max(model_performance))
         
     features_subset = feature_importances['importance'][:best_model_cnt_features].index.to_list()
-    return features_subset   
+    return features_subset  
+
+class IqrCapper(BaseEstimator,TransformerMixin):
+    def __init__(self,columns=None,lower_percentile=0.25,upper_percentile=0.75):
+        self.columns = columns
+        self.lower_percentile = lower_percentile
+        self.upper_percentile = upper_percentile
+        self.lower_bounds_ = {}
+        self.upper_bounds_ = {}
+        
+    def fit(self,X,y=None):
+        for col in self.columns:
+            q1 = X[col].quantile(self.lower_percentile)
+            q3 = X[col].quantile(self.upper_percentile)
+            iqr = q3 - q1
+            self.lower_bounds_[col] = q1 - 1.5 * iqr
+            self.upper_bounds_[col] = q3 + 1.5 * iqr
+        
+        return self
+    
+    def transform(self,X,y=None):
+        X_ = X.copy()
+        for col in self.columns:
+            X_[col] = np.where(X_[col] < self.lower_bounds_[col],self.lower_bounds_[col],
+                              np.where(X_[col] > self.upper_bounds_[col],self.upper_bounds_[col],X_[col]))
+        return X_
+        
+    
+
+        
+     
         
             
