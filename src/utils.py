@@ -5,6 +5,8 @@ from sklearn.metrics import f1_score,mean_squared_error
 from sklearn.base import BaseEstimator, TransformerMixin
 from typing_extensions import Dict
 import numpy as np
+from sklearn.model_selection import KFold,StratifiedKFold,cross_validate
+
 
 def outlier_value(data:pd.DataFrame, column:str, lower_q:float,upper_q:float,outlier_type:str)->Dict:
     """
@@ -246,26 +248,60 @@ class IqrCapper(BaseEstimator,TransformerMixin):
         self.upper_percentile = upper_percentile
         self.lower_bounds_ = {}
         self.upper_bounds_ = {}
+        self.feature_names_out_ = None
         
     def fit(self,X,y=None):
-        for col in self.columns:
-            q1 = X[col].quantile(self.lower_percentile)
-            q3 = X[col].quantile(self.upper_percentile)
+        df = X
+        if not isinstance(X, pd.DataFrame):
+            df = pd.DataFrame(X)
+        if self.columns is None:
+            self.columns = df.columns
+        for col in df.columns:
+            q1 = df[col].quantile(self.lower_percentile)
+            q3 = df[col].quantile(self.upper_percentile)
             iqr = q3 - q1
             self.lower_bounds_[col] = q1 - 1.5 * iqr
             self.upper_bounds_[col] = q3 + 1.5 * iqr
-        
+        self.feature_names_out_ = self.columns
         return self
     
     def transform(self,X,y=None):
-        X_ = X.copy()
-        for col in self.columns:
-            X_[col] = np.where(X_[col] < self.lower_bounds_[col],self.lower_bounds_[col],
-                              np.where(X_[col] > self.upper_bounds_[col],self.upper_bounds_[col],X_[col]))
-        return X_
+        df = X
+        if not isinstance(X, pd.DataFrame):
+            df = pd.DataFrame(X)
+        for col in df.columns:
+            df[col] = np.where(df[col] < self.lower_bounds_[col],self.lower_bounds_[col],
+                              np.where(df[col] > self.upper_bounds_[col],self.upper_bounds_[col],df[col]))
+        return df
+    
+    def get_feature_names_out(self,input_features=None):
+        if input_features is None:
+            return self.feature_names_out_
+        return self.input_features
+
+def ModelCrossValidation(model_pipeline,X,y,stratify=False,n_splits=5,type='classification')->pd.DataFrame:
+    """
+    Function to train the model
+    args:
+    model_pipeline: Model pipeline
+    X: Feature data
+    y: Target data
+    stratify: Stratify the target data
+    """
+    if stratify:
+        cv = StratifiedKFold(n_splits=n_splits,shuffle=True,random_state=42)
+    else:
+        cv = KFold(n_splits=n_splits,shuffle=True,random_state=42)
+        
+    if type == 'classification':
+        scoring = ['balanced_accuracy','f1','recall','precision','neg_log_loss','roc_auc']
+    else:
+        scoring = ['neg_mean_squared_error','r2','neg_mean_absolute_error']
+        
+    cv_results = cross_validate(model_pipeline,X,y,cv=cv,scoring=scoring,return_train_score=True,verbose=1)
+    return pd.DataFrame(cv_results)
         
     
-
         
      
         
