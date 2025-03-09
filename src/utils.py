@@ -108,13 +108,17 @@ def data_profile_categorical(data:pd.DataFrame,target_col:str)->pd.DataFrame:
     result = {}
     for i in df.columns:
         if df[i].dtype == 'object':
-            result[i] = [df[i].mode().values[0], 
-                         (df[i].value_counts().values[0]), 
-                         df[i].value_counts().index[1], 
-                         (df[i].value_counts().values[1]), 
+            mode = df[i].mode().values[0]
+            mode_freq = df[i].value_counts().values[0]
+            second_mode = df[i].value_counts().index[1] if len(df[i].value_counts()) > 1 else None
+            second_mode_freq = df[i].value_counts().values[1] if len(df[i].value_counts()) > 1 else None
+            result[i] = [mode, 
+                         mode_freq, 
+                         second_mode, 
+                         second_mode_freq, 
                          df[i].isnull().mean() * 100,
-                        (df[i].nunique()*100)/df[i].count(),
-                        df[i].nunique()]
+                         (df[i].nunique() * 100) / df[i].count(),
+                         df[i].nunique()]
     
     return pd.DataFrame(result, index=cat_params)
 
