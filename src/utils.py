@@ -3,7 +3,7 @@ from sklearn.tree import DecisionTreeClassifier,DecisionTreeRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score,mean_squared_error
 from sklearn.base import BaseEstimator, TransformerMixin
-from typing_extensions import Dict
+from typing_extensions import Dict,List
 import numpy as np
 from sklearn.model_selection import KFold,StratifiedKFold,cross_validate
 
