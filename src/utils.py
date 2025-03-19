@@ -35,7 +35,7 @@ def outlier_value(data:pd.DataFrame, column:str, lower_q:float,upper_q:float,out
         result['outlier_count'] = data[ (data[column] >  Q3 + IQR)][column].count()
         return result
 
-def data_profile_numeric(data:pd.DataFrame,target_col:str,lower_q:float,upper_q:float)->pd.DataFrame:
+def data_profile_numeric(data:pd.DataFrame,lower_q:float,upper_q:float,target_col:str=None)->pd.DataFrame:
     """
 
     Args:
@@ -47,7 +47,10 @@ def data_profile_numeric(data:pd.DataFrame,target_col:str,lower_q:float,upper_q:
     Returns:
         pd.DataFrame: Data profile on all the numeric columns
     """
-    df = data.drop([target_col],axis=1)
+    if target_col is not None:
+        df = data.drop([target_col],axis=1)
+    else :
+        df = data.copy()
     numeric_params = ['mean', 
                       'std', 
                       'min', 
@@ -96,9 +99,11 @@ def data_profile_categorical(data:pd.DataFrame,target_col:str)->pd.DataFrame:
     Returns:
         pd.DataFrame: Data profile on all the categorical columns
     """
+    if target_col is not None:
+        df = data.drop([target_col],axis=1)
+    else :
+        df = data.copy()
     
-
-    df = data.drop([target_col],axis=1)
     cat_params = ['mode',
                  'mode_freq',
                   '2nd_mode',
@@ -148,7 +153,10 @@ def remove_non_info_variables(data:pd.DataFrame,target_col:str,missing_values_th
         missing_values_threshold (float): missing value threshold
         
     """
-    df = data.drop([target_col],axis=1)
+    if target_col is not None:
+        df = data.drop([target_col],axis=1)
+    else :
+        df = data.copy()
     remove_columns = []
     for i in df.columns:
         if df[i].isnull().mean()  > missing_values_threshold:
@@ -156,6 +164,8 @@ def remove_non_info_variables(data:pd.DataFrame,target_col:str,missing_values_th
         elif df[i].dtype == 'object' and df[i].nunique() == 1:
             remove_columns.append(i)
         elif df[i].dtype != 'object' and df[i].std() == min_variance:
+            remove_columns.append(i)
+        elif df[i].dtype == 'object' and df[i].nunique()/df[i].count() == 1:
             remove_columns.append(i)
             
     df_subset = data.drop(remove_columns,axis=1)
