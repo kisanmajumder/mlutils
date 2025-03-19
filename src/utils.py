@@ -66,7 +66,8 @@ def data_profile_numeric(data:pd.DataFrame,target_col:str,lower_q:float,upper_q:
                       ]
     result = {}
     for i in df.columns:
-        if df[i].dtype != 'object':
+        if df[i].dtype in ('int64','float64'):
+            # Select only numeric columns, it should ignore any other types of columns
             result[i] = [df[i].mean(), 
                          df[i].std(), 
                          df[i].min(), 
